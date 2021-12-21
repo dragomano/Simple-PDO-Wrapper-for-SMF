@@ -1,11 +1,11 @@
 # Simple PDO Wrapper for SMF
 ![SMF 2.1](https://img.shields.io/badge/SMF-2.1-ed6033.svg?style=flat)
 ![License](https://img.shields.io/github/license/dragomano/simple-pdo-wrapper-for-smf)
-![PHP](https://img.shields.io/badge/PHP-^7.3-blue.svg?style=flat)
+![PHP](https://img.shields.io/badge/PHP-^7.4-blue.svg?style=flat)
 
 * **Author:** Bugo
 * **License:** [MIT](https://github.com/dragomano/Simple-PDO-Wrapper-for-SMF/blob/main/LICENSE)
-* **Compatible with:** SMF 2.1 RC3+ / PHP 7.3+
+* **Compatible with:** SMF 2.1 RC4+ / PHP 7.4+
 * **Hooks only:** Yes
 
 ## Description
@@ -28,7 +28,6 @@ $db->table('members')->limit(2)->get();
 $db->table('members')->pluck('id_member', 'real_name');
 $db->table('members')->insert(['real_name' => 'Test', 'buddy_list' => '', 'signature' => '', 'ignore_boards' => '']);
 $db->table('members')->where('id_member', 5)->update(['real_name' => 'Test']);
-$db->table('members')->upsert([['id_member' => 1, 'real_name' => 'Test']], ['id_member'], ['real_name']);
 $db->table('members')->where('id_member', 26)->decrement('posts', 1, ['real_name' => 'Test']);
 $db->table('members')->find(1, 'id_member', ['real_name']);
 $db->table('members AS mem')->leftJoin('topics AS t', 't.id_member_started = mem.id_member')->where('mem.id_member', 1)->get();

@@ -13,60 +13,48 @@ namespace Bugo\PDOSMF;
  * @copyright 2021 Bugo
  * @license https://opensource.org/licenses/mit-license.php MIT
  *
- * @version 0.1
+ * @version 0.2
  */
+
+if (! defined('SMF'))
+	die('No direct access...');
 
 /**
  * Simple PDO wrapper for SMF
  */
 class Database
 {
-	/** @var static */
-	private static $instance;
+	private static Database $instance;
 
-	/** @var  \PDO */
-	private $pdo;
+	private \PDO $pdo;
 
-	/** @var string|null */
-	private $prefix;
+	private ?string $prefix;
 
-	/** @var string|null */
-	protected $table;
+	protected ?string $table;
 
-	/** @var array */
-	protected $columns = [];
+	protected array $columns = [];
 
-	/** @var bool */
-	protected $distinct = false;
+	protected bool $distinct = false;
 
-	/** @var array */
-	protected $joins = [];
+	protected array $joins = [];
 
-	/** @var array */
-	protected $wheres = [];
+	protected array $wheres = [];
 
-	/** @var array */
-	protected $groupBy = [];
+	protected array $groupBy = [];
 
-	/** @var array */
-	protected $orderBy = [];
+	protected array $orderBy = [];
 
-	/** @var string|null */
-	protected $having;
+	protected ?string $having;
 
-	/** @var string|null */
-	protected $limit;
+	protected ?string $limit;
 
-	/** @var int|null */
-	protected $offset;
+	protected ?int $offset;
 
-	/** @var array */
-	protected $params = [];
+	protected array $params = [];
 
-	/** @var array */
-	protected $queries = [];
+	protected array $queries = [];
 
-	public static function getInstance()
+	public static function getInstance(): Database
 	{
 		if (empty(self::$instance)) {
 			self::$instance = new static();
@@ -75,6 +63,9 @@ class Database
 		return self::$instance;
 	}
 
+	/**
+	 * @see fatal_error function in SMF/Sources/Errors.php
+	 */
 	private function __construct()
 	{
 		global $db_type, $db_server, $db_name, $db_user, $db_passwd, $db_prefix;
@@ -99,27 +90,14 @@ class Database
 
 	public function __wakeup() {}
 
-	/**
-	 * Set a table name and get $this
-	 *
-	 * @param string $name
-	 * @return $this
-	 */
-	public function table(string $name)
+	public function table(string $name): Database
 	{
 		$this->table = $this->prefix . $name;
 
 		return $this;
 	}
 
-	/**
-	 * Get the query result
-	 *
-	 * @param bool $oneRow
-	 * @param int $type
-	 * @return array
-	 */
-	public function get($oneRow = false, $type = \PDO::FETCH_ASSOC)
+	public function get(bool $oneRow = false, int $type = \PDO::FETCH_ASSOC): array
 	{
 		$distinct = $this->getPreparedDistinct();
 
@@ -146,48 +124,21 @@ class Database
 		return $oneRow ? $stm->fetch($type) : $stm->fetchAll($type);
 	}
 
-	/**
-	 * Run a select statement against the database
-	 *
-	 * @param array|mixed $columns
-	 * @return $this
-	 */
-	public function select($columns = ['*'])
+	public function select($columns = ['*']): Database
 	{
-		// Support of raw queries
-/* 		if (is_string($columns) && strpos($columns, 'SELECT') !== false) {
-			$sql = $columns;
-			$stm = $this->prepare($sql);
-
-			return $stm->fetchAll(\PDO::FETCH_ASSOC);
-		} */
-
 		$this->columns = is_array($columns) ? $columns : func_get_args();
 
 		return $this;
 	}
 
-	/**
-	 * Force the query to only return distinct results
-	 *
-	 * @return $this
-	 */
-	public function distinct()
+	public function distinct(): Database
 	{
 		$this->distinct = true;
 
 		return $this;
 	}
 
-	/**
-	 * Add a new select column to the query
-	 *
-	 * Добавляем дополнительные столбцы для выборки
-	 *
-	 * @param array|mixed $columns
-	 * @return $this
-	 */
-	public function addSelect($columns = ['*'])
+	public function addSelect($columns = ['*']): Database
 	{
 		$columns = is_array($columns) ? $columns : func_get_args();
 
@@ -196,20 +147,11 @@ class Database
 		return $this;
 	}
 
-	/**
-	 * Add a new "raw" select expression to the query
-	 *
-	 * Добавляем необработанное выражение SELECT в текущий запрос
-	 *
-	 * @param string $expression
-	 * @param array $bindings
-	 * @return $this
-	 */
-	public function selectRaw($expression, array $bindings = [])
+	public function selectRaw(string $expression): Database
 	{
 		$columns = [];
 
-		if (!empty($binding)) {
+		if (! empty($binding)) {
 			foreach ($binding as $key => $value) {
 				$columns[$key] = strtr($expression, ['?' => $value]);
 			}
@@ -222,19 +164,7 @@ class Database
 		return $this;
 	}
 
-	/**
-	 * Add a join clause to the query
-	 *
-	 * Добавляем в запрос дополнительную таблицу через JOIN
-	 *
-	 * @param string $table
-	 * @param string $first
-	 * @param string|null $operator
-	 * @param string|null $second
-	 * @param string $type
-	 * @return $this
-	 */
-	public function join($table, $first, $operator = null, $second = null, $type = 'inner')
+	public function join(string $table, string $first, string $operator = null, string $second = null, string $type = 'inner'): Database
 	{
 		$type = $type === 'left' ? 'LEFT' : 'INNER';
 
@@ -243,32 +173,12 @@ class Database
 		return $this;
 	}
 
-	/**
-	 * Add a left join to the query
-	 *
-	 * Добавляем в запрос дополнительную таблицу через LEFT JOIN
-	 *
-	 * @param string $table
-	 * @param string $first
-	 * @param string|null $operator
-	 * @param string|null $second
-	 * @return $this
-	 */
-	public function leftJoin($table, $first, $operator = null, $second = null)
+	public function leftJoin(string $table, string $first, string $operator = null, string $second = null): Database
 	{
 		return $this->join($table, $first, $operator, $second, 'left');
 	}
 
-	/**
-	 * Add a basic where clause to the query
-	 *
-	 * @param string|array $column
-	 * @param mixed $operator
-	 * @param mixed $value
-	 * @param string $boolean
-	 * @return $this
-	 */
-	public function where($column, $operator = null, $value = null, $boolean = 'and')
+	public function where($column, $operator = null, $value = null, string $boolean = 'and'): Database
 	{
 		if (empty($column)) {
 			return $this;
@@ -300,7 +210,7 @@ class Database
 			return $this->where($column, '=', $operator, $boolean);
 		}
 
-		if (!is_array($value)) {
+		if (! is_array($value)) {
 			$this->params[str_replace('.', '_', $column)] = $value;
 		}
 
@@ -315,93 +225,32 @@ class Database
 		return $this;
 	}
 
-	/**
-	 * Add a "or where" clause to the query
-	 *
-	 * Добавляем условие "or where" для текущего запроса
-	 *
-	 * @param string|array $columns
-	 * @param mixed $operator
-	 * @param mixed $value
-	 * @return $this
-	 */
-	public function orWhere($column, $operator = null, $value = null)
+	public function orWhere($column, $operator = null, $value = null): Database
 	{
 		return $this->where($column, $operator, $value, 'or');
 	}
 
-	/**
-	 * Add a "where in" clause to the query
-	 *
-	 * Добавляем условие "where in" для текущего запроса
-	 *
-	 * @param string $column
-	 * @param mixed $values
-	 * @param string  boolean
-	 * @param bool $not
-	 * @return $this
-	 */
-	public function whereIn($column, $values, $boolean = 'and', $not = false)
+	public function whereIn(string $column, $values, $boolean = 'and', bool $not = false): Database
 	{
 		return $this->where($column, $not ? 'NOT IN' : 'IN', $values, $boolean);
 	}
 
-	/**
-	 * Add a "or where in" clause to the query
-	 *
-	 * Добавляем условие "or where in" для текущего запроса
-	 *
-	 * @param string $column
-	 * @param mixed $values
-	 * @param string  boolean
-	 * @param bool $not
-	 * @return $this
-	 */
-	public function orWhereIn($column, $values, $boolean = 'or', $not = false)
+	public function orWhereIn(string $column, $values, string $boolean = 'or', bool $not = false): Database
 	{
 		return $this->whereIn($column, $values, $boolean, $not);
 	}
 
-	/**
-	 * Add a "where not in" clause to the query
-	 *
-	 * Добавляем условие "where not in" для текущего запроса
-	 *
-	 * @param string $column
-	 * @param mixed $values
-	 * @param string  boolean
-	 * @return $this
-	 */
-	public function whereNotIn($column, $values, $boolean = 'and')
+	public function whereNotIn(string $column, $values, string $boolean = 'and'): Database
 	{
 		return $this->whereIn($column, $values, $boolean, true);
 	}
 
-	/**
-	 * Add a "or where not in" clause to the query
-	 *
-	 * Добавляем условие "or where not in" для текущего запроса
-	 *
-	 * @param string $column
-	 * @param mixed $values
-	 * @return $this
-	 */
-	public function orWhereNotIn($column, $values)
+	public function orWhereNotIn(string $column, $values): Database
 	{
 		return $this->whereNotIn($column, $values, 'or');
 	}
 
-	/**
-	 * Add a raw where clause to the query
-	 *
-	 * Добавляем необработанное выражение WHERE в текущий запрос
-	 *
-	 * @param string $sql
-	 * @param mixed $bindings
-	 * @param string $boolean
-	 * @return $this
-	 */
-	public function whereRaw($sql, $bindings = [], $boolean = 'and')
+	public function whereRaw(string $sql, $bindings = [], string $boolean = 'and'): Database
 	{
 		$this->wheres[] = ['type' => 'raw', 'sql' => $sql, 'boolean' => $boolean];
 		$this->params = array_merge($this->params, $bindings);
@@ -409,47 +258,19 @@ class Database
 		return $this;
 	}
 
-	/**
-	 * Add a raw or where clause to the query
-	 *
-	 * Добавляем необработанное выражение OR WHERE в текущий запрос
-	 *
-	 * @param string $sql
-	 * @param mixed $bindings
-	 * @return $this
-	 */
-	public function orWhereRaw($sql, $bindings = [])
+	public function orWhereRaw(string $sql, $bindings = []): Database
 	{
 		return $this->whereRaw($sql, $bindings, 'or');
 	}
 
-	/**
-	 * Add a "having" clause to the query
-	 *
-	 * Добавляем условие "having" для текущего запроса
-	 *
-	 * @param string $column
-	 * @param string|null $operator
-	 * @param string|null $value
-	 * @param string $boolean
-	 * @return $this
-	 */
-	public function having($column, $operator = null, $value = null, $boolean = 'and')
+	public function having(string $column, string $operator = null, string $value = null, string $boolean = 'and'): Database
 	{
 		$this->having .= ($this->having ? " {$boolean} " : '') . "{$column} {$operator} {$value}";
 
 		return $this;
 	}
 
-	/**
-	 * Add an "group by" clause to the query
-	 *
-	 * Добавляем условие "group by" для текущего запроса
-	 *
-	 * @param string $column
-	 * @return $this
-	 */
-	public function groupBy(...$columns)
+	public function groupBy(...$columns): Database
 	{
 		foreach ($columns as $column) {
 			$this->groupBy[] = $column;
@@ -458,16 +279,7 @@ class Database
 		return $this;
 	}
 
-	/**
-	 * Add an "order by" clause to the query
-	 *
-	 * Добавляем условие "order by" для текущего запроса
-	 *
-	 * @param string $column
-	 * @param string $direction
-	 * @return $this
-	 */
-	public function orderBy($column, $direction = 'ASC')
+	public function orderBy(string $column, string $direction = 'ASC'): Database
 	{
 		[$column, $dir] = explode(' ', $column);
 
@@ -476,19 +288,10 @@ class Database
 		return $this;
 	}
 
-	/**
-	 * Set the "limit" value of the query
-	 *
-	 * Задаем "limit" для текущего запроса
-	 *
-	 * @param int $value
-	 * @param null|int $offset
-	 * @return $this
-	 */
-	public function limit($value, $offset = null)
+	public function limit(int $value, int $offset = null): Database
 	{
 		if ($value >= 0) {
-			$this->limit = $value;
+			$this->limit = (string) $value;
 
 			if ($offset) {
 				$this->limit = "{$value}, {$offset}";
@@ -498,15 +301,7 @@ class Database
 		return $this;
 	}
 
-	/**
-	 * Set the "offset" value of the query
-	 *
-	 * Задаем "offset" для текущего запроса
-	 *
-	 * @param int $value
-	 * @return $this
-	 */
-	public function offset($value)
+	public function offset(int $value): Database
 	{
 		if ($value >= 0) {
 			$this->offset = max(0, $value);
@@ -515,51 +310,29 @@ class Database
 		return $this;
 	}
 
-	/**
-	 * Execute a query for a single record by ID
-	 *
-	 * @param string $id
-	 * @param string $uniqueKey
-	 * @param array $columns
-	 * @return array
-	 */
-	public function find($id, $uniqueKey = 'id', $columns = ['*'])
+	public function find(int $id, string $uniqueKey = 'id', array $columns = ['*']): array
 	{
 		return $this->where($uniqueKey, $id)->first($columns);
 	}
 
 	/**
 	 * Get a single column's value from the first result of a query
-	 *
 	 * Получаем значение заданного столбца из первой строки результата запроса
 	 *
 	 * @param string $column
 	 * @return mixed
 	 */
-	public function value($column)
+	public function value(string $column)
 	{
 		return $this->select($column)->limit(1)->get(true, \PDO::FETCH_COLUMN);
 	}
 
-	/**
-	 * Execute the query and get the first result
-	 *
-	 * @param array $columns
-	 * @return array
-	 */
-	public function first($columns = ['*'])
+	public function first(array $columns = ['*']): array
 	{
 		return $this->select($columns)->limit(1)->get(true);
 	}
 
-	/**
-	 * Get an array with the values of a given column
-	 *
-	 * @param string $column
-	 * @param string|null $key
-	 * @return array
-	 */
-	public function pluck($column, $key = null)
+	public function pluck(string $column, ?string $key = null): array
 	{
 		if ($key) {
 			$column = "{$key}, {$column}";
@@ -571,15 +344,7 @@ class Database
 		return $stm->fetchAll($key ? \PDO::FETCH_KEY_PAIR : \PDO::FETCH_COLUMN);
 	}
 
-	/**
-	 * Get the number of rows in the table
-	 *
-	 * Получаем количество строк в таблице
-	 *
-	 * @param string $column
-	 * @return int
-	 */
-	public function count($column = '*')
+	public function count(string $column = '*'): int
 	{
 		$sql = "SELECT COUNT({$column}) FROM {$this->table}";
 		$stm = $this->query($sql);
@@ -589,13 +354,12 @@ class Database
 
 	/**
 	 * Retrieve the minimum value of a given column
-	 *
 	 * Получаем наименьшее значение выбранного столбца
 	 *
 	 * @param string $column
 	 * @return mixed
 	 */
-	public function min($column)
+	public function min(string $column)
 	{
 		$sql = "SELECT MIN({$column}) FROM {$this->table}";
 		$stm = $this->query($sql);
@@ -605,13 +369,12 @@ class Database
 
 	/**
 	 * Retrieve the maximum value of a given column
-	 *
 	 * Получаем наибольшее значение выбранного столбца
 	 *
 	 * @param string $column
 	 * @return mixed
 	 */
-	public function max($column)
+	public function max(string $column)
 	{
 		$sql = "SELECT MAX({$column}) FROM {$this->table}";
 		$stm = $this->query($sql);
@@ -621,19 +384,18 @@ class Database
 
 	/**
 	 * Insert new records into the database
-	 *
 	 * Добавляем новые записи в базу данных
 	 *
 	 * @param array $values
 	 * @return int|array
 	 */
-	public function insert($values)
+	public function insert(array $values)
 	{
 		if (empty($values)) {
 			return 0;
 		}
 
-		if (!is_array(reset($values))) {
+		if (! is_array(reset($values))) {
 			$values = [$values];
 		} else {
 			foreach ($values as $key => $value) {
@@ -676,15 +438,7 @@ class Database
 		return $ids;
 	}
 
-	/**
-	 * Update records in the database
-	 *
-	 * Обновляем записи в базе данных
-	 *
-	 * @param array $values ([$column => $value] or [$column => [$expression]])
-	 * @return int
-	 */
-	public function update($values)
+	public function update(array $values): int
 	{
 		$columns = [];
 		foreach ($values as $key => $value) {
@@ -703,71 +457,9 @@ class Database
 		return $stm->rowCount();
 	}
 
-	/**
-	 * Undocumented function
-	 *
-	 * @param [type] $values
-	 * @param array $keys
-	 * @param array $update
-	 * @return void
-	 */
-	public function upsert($values, $keys = [], $update = [])
+	public function increment(string $column, int $amount = 1, array $extra = []): int
 	{
-		if (empty($values)) {
-			return 0;
-		} elseif ($update === []) {
-			return $this->insert($values);
-		}
-
-		if (!is_array(reset($values))) {
-			$values = [$values];
-		} else {
-			foreach ($values as $key => $value) {
-				ksort($value);
-
-				$values[$key] = $value;
-			}
-		}
-
-		if (is_null($update)) {
-			$update = array_keys(reset($values));
-		}
-
-		$rowCount = 0;
-
-		$this->pdo->beginTransaction();
-
-		try {
-			foreach ($values as $value) {
-				$this->params = $value;
-
-				$values = array_diff_key($value, array_flip($keys));
-				$columns = array_diff_key($this->params, $value);
-
-				$rowCount += $this->where($columns)->update($values);
-			}
-
-			$this->pdo->commit();
-		} catch (\PDOException $e) {
-			$this->pdo->rollBack();
-		}
-
-		return $rowCount;
-	}
-
-	/**
-	 * Increment a column's value by a given amount
-	 *
-	 * Увеличиваем значение столбца на заданную величину
-	 *
-	 * @param string $column
-	 * @param int $amount
-	 * @param array $extra
-	 * @return int
-	 */
-	public function increment($column, $amount = 1, $extra = [])
-	{
-		if (!is_numeric($amount))
+		if (! is_numeric($amount))
 			return 0;
 
 		$updates = [];
@@ -786,29 +478,12 @@ class Database
 		return $stm->rowCount();
 	}
 
-	/**
-	 * Decrement a column's value by a given amount
-	 *
-	 * Уменьшаем значение столбца на заданную величину
-	 *
-	 * @param string $column
-	 * @param int $amount
-	 * @param array $extra
-	 * @return int
-	 */
-	public function decrement($column, $amount = 1, $extra = [])
+	public function decrement(string $column, int $amount = 1, array $extra = []): int
 	{
 		return $this->increment($column, -$amount, $extra);
 	}
 
-	/**
-	 * Delete records from the database
-	 *
-	 * Удаляем записи из базы данных
-	 *
-	 * @return int
-	 */
-	public function delete()
+	public function delete(): int
 	{
 		$where = $this->getPreparedWhere();
 
@@ -819,92 +494,57 @@ class Database
 		return $stm->rowCount();
 	}
 
-	/**
-	 * Wrapper for PDO::prepare method
-	 *
-	 * Подготавливает запрос к выполнению и возвращает связанный с этим запросом объект
-	 *
-	 * @param string $sql
-	 * @return \PDOStatement
-	 */
-	private function prepare($sql)
+	private function prepare(string $sql): \PDOStatement
 	{
 		$stm = $this->pdo->prepare($sql);
 		$stm->execute($this->params);
 
-		$this->queries[] = ['your_query' => $stm->_debugQuery(), 'safe_query' => $stm->queryString];
+		$this->queries[] = ['base_query' => $stm->_debugQuery(), 'safe_query' => $stm->queryString];
 
 		return $stm;
 	}
 
-	/**
-	 * Wrapper for POD::query method
-	 *
-	 * Выполняет SQL-запрос и возвращает результирующий набор в виде объекта PDOStatement
-	 *
-	 * @param string $sql
-	 * @return \PDOStatement
-	 */
-	private function query($sql)
+	private function query(string $sql): \PDOStatement
 	{
 		$stm = $this->pdo->query($sql);
 
-		$this->queries[] = ['your_query' => $stm->_debugQuery(), 'safe_query' => $stm->queryString];
+		$this->queries[] = ['base_query' => $stm->_debugQuery(), 'safe_query' => $stm->queryString];
 
 		return $stm;
 	}
 
-	/**
-	 * Get an array with current queries to the database
-	 *
-	 * Получаем массив с текущими запросами к базе данных
-	 *
-	 * @return array
-	 */
-	public function getQueries()
+	public function getQueries(): array
 	{
 		return $this->queries;
 	}
 
-	/**
-	 * @return string
-	 */
-	private function getPreparedDistinct()
+	private function getPreparedDistinct(): string
 	{
 		return $this->distinct ? 'DISTINCT ' : '';
 	}
 
-	/**
-	 * @return string
-	 */
-	private function getPreparedColumns()
+	private function getPreparedColumns(): string
 	{
-		if (!$this->columns) {
+		if (! $this->columns) {
 			$this->select(['*']);
 		}
 
 		return implode(', ', $this->columns);
 	}
 
-	/**
-	 * @return string
-	 */
-	private function getPreparedJoins()
+	private function getPreparedJoins(): string
 	{
 		return implode('', $this->joins);
 	}
 
-	/**
-	 * @return string
-	 */
-	private function getPreparedWhere()
+	private function getPreparedWhere(): string
 	{
 		$result = '';
 
 		foreach ($this->wheres as $where) {
 			extract($where);
 
-			if ($type == 'raw') {
+			if ($type === 'raw') {
 				if ($sql) {
 					$result .= ($result ? strtoupper(" {$boolean} ") : ' WHERE ') . $sql;
 				}
@@ -916,52 +556,37 @@ class Database
 		return $result;
 	}
 
-	/**
-	 * @return string
-	 */
-	private function getPreparedHaving()
+	private function getPreparedHaving(): string
 	{
-		return !empty($this->having) ? " HAVING {$this->having}" : '';
+		return empty($this->having) ? '' : " HAVING {$this->having}";
 	}
 
-	/**
-	 * @return string
-	 */
-	private function getPreparedGroupBy()
+	private function getPreparedGroupBy(): string
 	{
-		return !empty($this->groupBy) ? (' GROUP BY ' . implode(', ', $this->groupBy)) : '';
+		return empty($this->groupBy) ? '' : (' GROUP BY ' . implode(', ', $this->groupBy));
 	}
 
-	/**
-	 * @return string
-	 */
-	private function getPreparedOrderBy()
+	private function getPreparedOrderBy(): string
 	{
-		$order = !empty($this->orderBy) ? ' ORDER BY ' : '';
+		$order = empty($this->orderBy) ? '' : ' ORDER BY ';
 
 		foreach ($this->orderBy as $column => $direction) {
 			$order .= "{$column} {$direction}, ";
 		}
 
-		if (!empty($order)) {
+		if (! empty($order)) {
 			$order = rtrim($order, ', ');
 		}
 
 		return $order;
 	}
 
-	/**
-	 * @return string
-	 */
-	private function getPreparedLimit()
+	private function getPreparedLimit(): string
 	{
 		return $this->limit ? " LIMIT {$this->limit}" : '';
 	}
 
-	/**
-	 * @return string
-	 */
-	private function getPreparedOffset()
+	private function getPreparedOffset(): string
 	{
 		return $this->offset ? " OFFSET {$this->offset}" : '';
 	}

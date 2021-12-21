@@ -13,18 +13,14 @@ namespace Bugo\PDOSMF;
  * @copyright 2021 Bugo
  * @license https://opensource.org/licenses/mit-license.php MIT
  *
- * @version 0.1
+ * @version 0.2
  */
 
-if (!defined('SMF'))
-	die('Hacking attempt...');
+if (! defined('SMF'))
+	die('No direct access...');
 
 class Integration
 {
-	/**
-	 * @param array $classMap
-	 * @return void
-	 */
 	public function autoload(array &$classMap)
 	{
 		$classMap['Bugo\\PDOSMF\\'] = 'PDOSMF/';

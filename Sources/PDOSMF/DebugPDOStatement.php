@@ -13,60 +13,47 @@ namespace Bugo\PDOSMF;
  * @copyright 2021 Bugo
  * @license https://opensource.org/licenses/mit-license.php MIT
  *
- * @version 0.1
+ * @version 0.2
  */
+
+if (! defined('SMF'))
+	die('No direct access...');
 
 /**
  * Extended variation of PDOStatement, for debug purposes
  */
 class DebugPDOStatement extends \PDOStatement
 {
-	/** @var array */
-	protected $_debugValues = [];
+	protected array $_debugValues = [];
 
 	protected function __construct() {}
 
 	/**
-	 * Execute a query
-	 *
-	 * @param array $values
-	 * @return void
+	 * @see log_error function in SMF/Sources/Errors.php
 	 */
-	public function execute($values = [])
+	public function execute($params = [])
 	{
-		$this->_debugValues = $values;
+		$this->_debugValues = $params;
 
 		try {
-			return parent::execute($values);
+			return parent::execute($params);
 		} catch (\PDOException $e) {
 			log_error($e->getMessage() . "\n" . $this->_debugQuery(), 'database', $e->getFile(), $e->getLine());
 		}
 	}
 
-	/**
-	 * Replace callback for query
-	 *
-	 * @param bool $replaced
-	 * @return string|null
-	 */
-	public function _debugQuery($replaced = true)
+	public function _debugQuery(bool $replaced = true): ?string
 	{
 		$q = $this->queryString;
 
-		if (!$replaced) {
+		if (! $replaced) {
 			return $q;
 		}
 
 		return preg_replace_callback('/:([0-9a-z_]+)/i', array($this, '_debugReplace'), $q);
 	}
 
-	/**
-	 * Replace values to display full SQL string
-	 *
-	 * @param string $m
-	 * @return string|null
-	 */
-	protected function _debugReplace($m)
+	protected function _debugReplace(string $m): ?string
 	{
 		$v = $this->_debugValues[$m[1]];
 
@@ -74,7 +61,7 @@ class DebugPDOStatement extends \PDOStatement
 			return null;
 		}
 
-		if (!is_numeric($v)) {
+		if (! is_numeric($v)) {
 			$v = str_replace("'", "''", $v);
 		}
 
